@@ -1,21 +1,17 @@
 package com.example.ddoser.mail.impl;
 
-import com.example.ddoser.MailData;
-import com.example.ddoser.domain.EmailsSend;
+import com.example.ddoser.dto.Data;
 import com.example.ddoser.mail.MailSender;
-import com.example.ddoser.repo.EmailSendRepo;
 import com.example.ddoser.util.Util;
 import com.mailjet.client.ClientOptions;
 import com.mailjet.client.MailjetClient;
 import com.mailjet.client.MailjetRequest;
-import com.mailjet.client.MailjetResponse;
 import com.mailjet.client.errors.MailjetException;
 import com.mailjet.client.errors.MailjetSocketTimeoutException;
 import com.mailjet.client.resource.Emailv31;
 import lombok.SneakyThrows;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.FileInputStream;
@@ -25,9 +21,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class MailSenderImpl implements MailSender {
-
-    @Autowired
-    private EmailSendRepo emailSendRepo;
 
     private Util util = new Util();
     private final static String htmlPart = "<!DOCTYPE html>\n" +
@@ -55,70 +48,72 @@ public class MailSenderImpl implements MailSender {
     public MailSenderImpl() throws IOException {
     }
 
-
     @Override
-    public void send(List<MailData> mailData) {
-        mailData.stream().forEach(this::sendMail);
+    public void buildMailDataAndSend(final Data data) {
+        sendMail(data);
     }
-
-    @Override
-    public List<MailData> buildMailData(List<String> emails) {
-        return emails.stream().map(this::getMailData).collect(Collectors.toList());
-    }
-
-
-    private MailData getMailData(final String email) {
-        try {
-            emailSendRepo.save(new EmailsSend().setEmail(email));
-        } catch (Exception e) {
-            System.out.println("Email may already exists in db");
-        }
-        return MailData.builder().url(email).build();
-    }
-
 
     @SneakyThrows
-    private void sendMail(final MailData mailData) {
+    private void sendMail(final Data data) {
         MailjetClient client;
-        MailjetRequest request;
-        MailjetResponse response;
-        client = new MailjetClient("23d7a3923de8928a36833c6a49933267", "e9faef86efe19b7f125b09cbbb4623b8", new ClientOptions("v3.1"));
-        request = new MailjetRequest(Emailv31.resource)
-                .property(Emailv31.MESSAGES, new JSONArray()
-                        .put(new JSONObject()
-                                .put(Emailv31.Message.FROM, new JSONObject()
-                                        .put("Email", "bezook12@gmail.com")
-                                        .put("Name", "Bandera"))
-                                .put(Emailv31.Message.TO, new JSONArray()
-                                        .put(new JSONObject()
-                                                .put("Email", mailData.getUrl())
-                                                .put("Name", "Bandera")))
-                                .put(Emailv31.Message.SUBJECT, "ВОЙНА!!!")
-                                .put(Emailv31.Message.TEXTPART, "ВОЙНА!")
-                                .put(Emailv31.Message.HTMLPART, htmlPart)
-                                .put(Emailv31.Message.INLINEDATTACHMENTS, new JSONArray()
-                                        .put(new JSONObject()
-                                                .put("ContentType", "image/png")
-                                                .put("Filename", "photo_1.png")
-                                                .put("ContentID", "id1")
-                                                .put("Base64Content", ph1)
-                                        )
-                                        .put(new JSONObject()
-                                                .put("ContentType", "image/png")
-                                                .put("Filename", "photo_2.png")
-                                                .put("ContentID", "id2")
-                                                .put("Base64Content", ph2)
-                                        )
+        client = new MailjetClient(data.getApiKey(), data.getApiToken(), new ClientOptions("v3.1"));
+        var requests = buildMailREquest(data);
 
-                                        .put(new JSONObject()
-                                                .put("ContentType", "image/png")
-                                                .put("Filename", "photo_3.png")
-                                                .put("ContentID", "id3")
-                                                .put("Base64Content", ph3)
-                                        )
-                                )
-                                .put(Emailv31.Message.PRIORITY, 1)));
-        response = client.post(request);
-        System.out.println("Email send to ->" + mailData.getUrl() + "\n Response-> " + response.getStatus());
+        var responses = requests.stream().map(req -> {
+            try {
+                return client.post(req);
+            } catch (MailjetException e) {
+                System.out.println("Mail not send");
+            } catch (MailjetSocketTimeoutException e) {
+                System.out.println("Mail not send");
+            }
+            return null;
+        }).collect(Collectors.toList());
+
+        responses.stream().forEach(res -> {
+            System.out.println("\n Response-> " + res.getStatus());
+        });
+
+
+    }
+
+
+    private List<MailjetRequest> buildMailREquest(final Data data) {
+        return data.getEmails().stream().map(d -> {
+            return new MailjetRequest(Emailv31.resource)
+                    .property(Emailv31.MESSAGES, new JSONArray()
+                            .put(new JSONObject()
+                                    .put(Emailv31.Message.FROM, new JSONObject()
+                                            .put("Email", "bezook12@gmail.com")
+                                            .put("Name", "Bandera"))
+                                    .put(Emailv31.Message.TO, new JSONArray()
+                                            .put(new JSONObject()
+                                                    .put("Email", d)
+                                                    .put("Name", "Bandera")))
+                                    .put(Emailv31.Message.SUBJECT, "INFORMATION ALERT !!!")
+                                    .put(Emailv31.Message.HTMLPART, data.getText())
+//                                    .put(Emailv31.Message.INLINEDATTACHMENTS, new JSONArray()
+//                                            .put(new JSONObject()
+//                                                    .put("ContentType", "image/png")
+//                                                    .put("Filename", "photo_1.png")
+//                                                    .put("ContentID", "id1")
+//                                                    .put("Base64Content", ph1)
+//                                            )
+//                                            .put(new JSONObject()
+//                                                    .put("ContentType", "image/png")
+//                                                    .put("Filename", "photo_2.png")
+//                                                    .put("ContentID", "id2")
+//                                                    .put("Base64Content", ph2)
+//                                            )
+//
+//                                            .put(new JSONObject()
+//                                                    .put("ContentType", "image/png")
+//                                                    .put("Filename", "photo_3.png")
+//                                                    .put("ContentID", "id3")
+//                                                    .put("Base64Content", ph3)
+//                                            )
+//                                    )
+                                    .put(Emailv31.Message.PRIORITY, 1)));
+        }).collect(Collectors.toList());
     }
 }

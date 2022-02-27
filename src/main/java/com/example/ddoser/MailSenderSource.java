@@ -1,10 +1,9 @@
 package com.example.ddoser;
 
+import com.example.ddoser.dto.Data;
 import com.example.ddoser.mail.MailSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 public class MailSenderSource {
@@ -13,8 +12,8 @@ public class MailSenderSource {
     private MailSender mailSender;
 
     @PostMapping("/emails")
-    public void getEmails(@RequestBody List<String> emails){
-        mailSender.send(mailSender.buildMailData(emails));
+    public void getEmails(@RequestBody Data data) {
+        mailSender.buildMailDataAndSend(data);
     }
 
 
