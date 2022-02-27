@@ -1,0 +1,14 @@
+CREATE SEQUENCE hibernate_sequence
+    MINVALUE 1
+    START
+WITH 1
+    INCREMENT BY 5
+    CACHE 1;
+
+
+CREATE TABLE email
+(
+    id    BIGINT PRIMARY KEY,
+    email VARCHAR UNIQUE NOT NULL
+
+)
