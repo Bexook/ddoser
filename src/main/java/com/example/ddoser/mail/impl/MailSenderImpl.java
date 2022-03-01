@@ -3,26 +3,23 @@ package com.example.ddoser.mail.impl;
 import com.example.ddoser.dto.Data;
 import com.example.ddoser.mail.MailSender;
 import com.example.ddoser.util.Util;
-import com.mailjet.client.ClientOptions;
-import com.mailjet.client.MailjetClient;
-import com.mailjet.client.MailjetRequest;
-import com.mailjet.client.errors.MailjetException;
-import com.mailjet.client.errors.MailjetSocketTimeoutException;
-import com.mailjet.client.resource.Emailv31;
 import lombok.SneakyThrows;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import javax.mail.Address;
+import javax.mail.Message;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class MailSenderImpl implements MailSender {
 
-    private Util util = new Util();
+    @Autowired
+    private JavaMailSender javaMailSender;
     private final static String htmlPart = "<!DOCTYPE html>\n" +
             "<html lang=\"en\">\n" +
             "<head>\n" +
@@ -49,71 +46,22 @@ public class MailSenderImpl implements MailSender {
     }
 
     @Override
-    public void buildMailDataAndSend(final Data data) {
-        sendMail(data);
+    @SneakyThrows
+    public void buildMailDataAndSend(Data data) {
+        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+        mimeMessage.setFrom("info");
+        mimeMessage.setText(data.getText());
+        mimeMessage.addFrom(new Address[]{
+                new InternetAddress("FBI-info"),
+        });
+        data.getEmails().forEach(email -> addRecipientAndSend(email, mimeMessage));
     }
+
 
     @SneakyThrows
-    private void sendMail(final Data data) {
-        MailjetClient client;
-        client = new MailjetClient(data.getApiKey(), data.getApiToken(), new ClientOptions("v3.1"));
-        var requests = buildMailREquest(data);
-
-        var responses = requests.stream().map(req -> {
-            try {
-                return client.post(req);
-            } catch (MailjetException e) {
-                System.out.println("Mail not send");
-            } catch (MailjetSocketTimeoutException e) {
-                System.out.println("Mail not send");
-            }
-            return null;
-        }).collect(Collectors.toList());
-
-        responses.stream().forEach(res -> {
-            System.out.println("\n Response-> " + res.getStatus());
-        });
-
-
+    private void addRecipientAndSend(final String email, final MimeMessage message) {
+        message.addRecipients(Message.RecipientType.TO, email);
+        javaMailSender.send(message);
     }
 
-
-    private List<MailjetRequest> buildMailREquest(final Data data) {
-        return data.getEmails().stream().map(d -> {
-            return new MailjetRequest(Emailv31.resource)
-                    .property(Emailv31.MESSAGES, new JSONArray()
-                            .put(new JSONObject()
-                                    .put(Emailv31.Message.FROM, new JSONObject()
-                                            .put("Email", "bezook12@gmail.com")
-                                            .put("Name", "Bandera"))
-                                    .put(Emailv31.Message.TO, new JSONArray()
-                                            .put(new JSONObject()
-                                                    .put("Email", d)
-                                                    .put("Name", "Bandera")))
-                                    .put(Emailv31.Message.SUBJECT, "INFORMATION ALERT !!!")
-                                    .put(Emailv31.Message.HTMLPART, data.getText())
-//                                    .put(Emailv31.Message.INLINEDATTACHMENTS, new JSONArray()
-//                                            .put(new JSONObject()
-//                                                    .put("ContentType", "image/png")
-//                                                    .put("Filename", "photo_1.png")
-//                                                    .put("ContentID", "id1")
-//                                                    .put("Base64Content", ph1)
-//                                            )
-//                                            .put(new JSONObject()
-//                                                    .put("ContentType", "image/png")
-//                                                    .put("Filename", "photo_2.png")
-//                                                    .put("ContentID", "id2")
-//                                                    .put("Base64Content", ph2)
-//                                            )
-//
-//                                            .put(new JSONObject()
-//                                                    .put("ContentType", "image/png")
-//                                                    .put("Filename", "photo_3.png")
-//                                                    .put("ContentID", "id3")
-//                                                    .put("Base64Content", ph3)
-//                                            )
-//                                    )
-                                    .put(Emailv31.Message.PRIORITY, 1)));
-        }).collect(Collectors.toList());
-    }
 }

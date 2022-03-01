@@ -13,6 +13,4 @@ public class Data {
 
     private List<String> emails;
     private String text;
-    private final String apiKey;
-    private final String apiToken;
 }
